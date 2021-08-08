@@ -1,7 +1,7 @@
 package com.home;
 
 import com.home.dbclient.MongoDbClient;
-import com.home.mapping.BookMapper;
+import com.home.mapping.BookBuilder;
 import com.home.model.Book;
 import com.home.model.Cover;
 import org.bson.codecs.ValueCodecProvider;
@@ -52,7 +52,7 @@ public class BooksIndexer {
 
         try (var books = findAvailableBooks(rootPath)) {
             for (Path path : books.collect(Collectors.toUnmodifiableList())) {
-                executorService.execute(() -> indexBooksTask.accept(BookMapper.toBook(path)));
+                executorService.execute(() -> indexBooksTask.accept(BookBuilder.of(path)));
             }
             executorService.shutdown();
             if (!executorService.awaitTermination(EXECUTION_TIMEOUT_IN_MINUTES, MINUTES)) {

@@ -13,4 +13,5 @@ public final class Book implements Serializable {
     private String name;
     private String format;
     private Cover cover;
+    private String text;
 }

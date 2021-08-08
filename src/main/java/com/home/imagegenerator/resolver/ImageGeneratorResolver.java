@@ -1,9 +1,9 @@
 package com.home.imagegenerator.resolver;
 
 import com.home.imagegenerator.ImageGenerator;
-import com.home.imagegenerator.impl.DJVUImageGenerator;
+import com.home.imagegenerator.impl.DjvuImageGenerator;
 import com.home.imagegenerator.impl.EmptyImageGenerator;
-import com.home.imagegenerator.impl.PDFImageGenerator;
+import com.home.imagegenerator.impl.PdfImageGenerator;
 import com.home.model.FileType;
 import lombok.experimental.UtilityClass;
 
@@ -12,10 +12,10 @@ public class ImageGeneratorResolver {
     public static ImageGenerator resolveBySourceFileType(final String type) {
         switch (FileType.valueOf(type.toLowerCase())) {
             case pdf:
-                return new PDFImageGenerator();
+                return new PdfImageGenerator();
             case djvu:
             case djv:
-                return new DJVUImageGenerator();
+                return new DjvuImageGenerator();
             default:
                 return new EmptyImageGenerator();
         }

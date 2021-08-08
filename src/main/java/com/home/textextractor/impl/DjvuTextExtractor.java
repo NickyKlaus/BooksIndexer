@@ -1,6 +1,6 @@
-package com.home.imagegenerator.impl;
+package com.home.textextractor.impl;
 
-import com.home.imagegenerator.ImageGenerator;
+import com.home.textextractor.DocumentTextExtractor;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
@@ -16,17 +16,17 @@ import static java.util.concurrent.CompletableFuture.supplyAsync;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.commons.io.FilenameUtils.getExtension;
 
-public class DJVUImageGenerator implements ImageGenerator {
+public class DjvuTextExtractor implements DocumentTextExtractor {
 
     private static ProcessBuilder processBuilder() {
         return new ProcessBuilder().redirectErrorStream(true);
     }
 
-    private static Supplier<Process> startImageGeneration(final String generationCommand) {
+    private static Supplier<Process> startTextExtraction(final String extractionCommand) {
         return () -> {
             try {
                 return processBuilder()
-                        .command("zsh", "-c", generationCommand)
+                        .command("zsh", "-c", extractionCommand)
                         .start();
             } catch (IOException e) {
                 e.printStackTrace();
@@ -35,7 +35,7 @@ public class DJVUImageGenerator implements ImageGenerator {
         };
     }
 
-    private static final BiFunction<Process, Throwable, byte[]> retrieveGeneratedImageData = (process, throwable) -> {
+    private static final BiFunction<Process, Throwable, byte[]> retrieveExtractedBinaryData = (process, throwable) -> {
         if (throwable == null && process != null) {
             try {
                 return process.getInputStream().readAllBytes();
@@ -46,29 +46,34 @@ public class DJVUImageGenerator implements ImageGenerator {
         return new byte[0];
     };
 
-    private static CompletableFuture<byte[]> createImageFromFirstDjvuPage(
+    private static CompletableFuture<byte[]> extractHiddenTextFromDjvu(
             final String fullyQualifiedSourceFilename,
-            final String targetImageFormat
+            final int firstPage,
+            final int lastPage
     ) {
-        var generationCommand = format(
-                "ddjvu -format=pnm -page=1 -mode=color -skip -scale=72 \"%s\" - | convert pnm:fd:0 %s:- ",
-                fullyQualifiedSourceFilename,
-                targetImageFormat);
-        return supplyAsync(startImageGeneration(generationCommand))
-                .handleAsync(retrieveGeneratedImageData);
+        var extractionCommand = format(
+                "djvutxt --page=%d-%d %s",
+                firstPage,
+                lastPage,
+                fullyQualifiedSourceFilename);
+        return supplyAsync(startTextExtraction(extractionCommand))
+                .handleAsync(retrieveExtractedBinaryData);
     }
 
     @Override
-    public byte[] generate(final String fullyQualifiedSourceFilename, final String targetImageFormat) {
+    public String extract(final String fullyQualifiedSourceFilename, final int startPage, final int endPage) {
         assert djvu.toString().equalsIgnoreCase(getExtension(fullyQualifiedSourceFilename)) ||
                 djv.toString().equalsIgnoreCase(getExtension(fullyQualifiedSourceFilename));
+        assert (startPage > 0 && endPage > 0 && startPage <= endPage);
 
         try {
-            return createImageFromFirstDjvuPage(fullyQualifiedSourceFilename, targetImageFormat)
-                    .get(60L, SECONDS);
+            var binaryData =
+                    extractHiddenTextFromDjvu(fullyQualifiedSourceFilename, startPage, endPage)
+                            .get(60L, SECONDS);
+            return new String(binaryData, DEFAULT_TEXT_CHARSET);
         } catch (ExecutionException | InterruptedException | TimeoutException ioe) {
             ioe.printStackTrace();
         }
-        return new byte[0];
+        return "";
     }
 }
