@@ -2,6 +2,7 @@ package com.home.textextractor.impl;
 
 import com.home.textextractor.DocumentTextExtractor;
 
+import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -36,8 +37,11 @@ public class DjvuTextExtractor implements DocumentTextExtractor {
 
     private static final BiFunction<Process, Throwable, byte[]> retrieveExtractedBinaryData = (process, throwable) -> {
         if (throwable == null && process != null) {
-            try (var inputStream = process.getInputStream()) {
-                return inputStream.readAllBytes();
+            try (
+                    var inputStream = process.getInputStream();
+                    var data = new BufferedInputStream(inputStream)
+            ) {
+                return data.readAllBytes();
             } catch (IOException e) {
                 return new byte[0];
             }
@@ -51,7 +55,7 @@ public class DjvuTextExtractor implements DocumentTextExtractor {
             final int lastPage
     ) {
         var extractionCommand = format(
-                "djvutxt --page=%d-%d %s",
+                "djvutxt --page=%d-%d \"%s\"",
                 firstPage,
                 lastPage,
                 fullyQualifiedSourceFilename);
@@ -69,7 +73,7 @@ public class DjvuTextExtractor implements DocumentTextExtractor {
         try {
             var binaryData =
                     extractHiddenTextFromDjvu(fullyQualifiedSourceFilename, startPage, endPage)
-                            .get(3L, SECONDS);
+                            .get(10L, SECONDS);
             return new String(binaryData, DEFAULT_TEXT_CHARSET);
         } catch (ExecutionException | InterruptedException | TimeoutException ioe) {
             return "";

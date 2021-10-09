@@ -69,7 +69,7 @@ public class DjvuImageGenerator implements ImageGenerator {
 
         try {
             return createImageFromFirstDjvuPage(fullyQualifiedSourceFilename, targetImageFormat)
-                    .get(3L, SECONDS);
+                    .get(10L, SECONDS);
         } catch (ExecutionException | InterruptedException | TimeoutException ioe) {
             return new byte[0];
         }

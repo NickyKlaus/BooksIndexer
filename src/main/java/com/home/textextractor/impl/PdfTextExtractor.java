@@ -25,8 +25,9 @@ public class PdfTextExtractor implements DocumentTextExtractor {
                 var stream = new RandomAccessBufferedFileInputStream(Paths.get(fullyQualifiedSourceFilename).toFile())
         ) {
             var parser = new PDFParser(stream);
+            parser.parse();
+
             try (var cosDocument = parser.getDocument()) {
-                parser.parse();
                 stripper = new PDFTextStripper();
                 document = new PDDocument(cosDocument);
                 stripper.setStartPage(startPage);

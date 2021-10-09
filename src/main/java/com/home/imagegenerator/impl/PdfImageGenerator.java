@@ -1,6 +1,7 @@
 package com.home.imagegenerator.impl;
 
 import com.home.imagegenerator.ImageGenerator;
+import org.apache.pdfbox.io.MemoryUsageSetting;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.rendering.ImageType;
 import org.apache.pdfbox.rendering.PDFRenderer;
@@ -26,7 +27,7 @@ public class PdfImageGenerator implements ImageGenerator {
                 var outputStream = new ByteArrayOutputStream();
                 var bufferedOutputStream = new BufferedOutputStream(outputStream)
         ) {
-            document = load(bufferedInputStream);
+            document = load(bufferedInputStream, MemoryUsageSetting.setupMainMemoryOnly(163840L));
             ImageIO.write(
                     new PDFRenderer(document)
                             .renderImageWithDPI(0, TARGET_IMAGE_DPI, ImageType.RGB),
