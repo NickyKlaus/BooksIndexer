@@ -4,6 +4,8 @@ import com.home.dbclient.MongoDbClient;
 import com.home.mapping.BookBuilder;
 import com.home.model.Book;
 import com.home.model.Cover;
+import com.mongodb.client.MongoCollection;
+import com.mongodb.client.model.InsertOneModel;
 import org.bson.codecs.ValueCodecProvider;
 import org.bson.codecs.jsr310.Jsr310CodecProvider;
 import org.bson.codecs.pojo.PojoCodecProvider;
@@ -12,8 +14,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -21,13 +23,12 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static com.home.model.FileType.contains;
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
-import static java.util.concurrent.TimeUnit.MINUTES;
+import static java.util.concurrent.TimeUnit.*;
 import static org.apache.commons.io.FilenameUtils.getExtension;
 import static org.bson.codecs.configuration.CodecRegistries.fromProviders;
 
 public class BooksIndexer {
-    private static final long EXECUTION_TIMEOUT_IN_MINUTES = 30L;
+    private static final int CHUNK_SIZE = 10;
     private static final String ROOT_BOOKS_DIR_PROPERTY = "root_books_dir";
     private static final String DB_HOST_PROPERTY = "host";
     private static final String DB_PORT_PROPERTY = "port";
@@ -46,21 +47,21 @@ public class BooksIndexer {
         return Stream.empty();
     }
 
-    private void indexBooks(final Path rootPath, final Consumer<? super Book> indexBooksTask) {
+    private void indexBooks(final Path rootPath, final MongoCollection<Book> collection) {
         var start = System.currentTimeMillis();
-        ExecutorService executorService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+        var counter = new AtomicInteger();
+        var chunks = findAvailableBooks(rootPath)
+                .collect(Collectors.groupingByConcurrent(path -> counter.getAndIncrement() / CHUNK_SIZE))
+                .values();
 
-        try (var books = findAvailableBooks(rootPath)) {
-            for (Path path : books.collect(Collectors.toUnmodifiableList())) {
-                executorService.execute(() -> indexBooksTask.accept(BookBuilder.of(path)));
-            }
-            executorService.shutdown();
-            if (!executorService.awaitTermination(EXECUTION_TIMEOUT_IN_MINUTES, MINUTES)) {
-                executorService.shutdown();
-            }
-        } catch (InterruptedException ie) {
-            executorService.shutdownNow();
-        }
+        final Consumer<List<Path>> writeBooksChunk = (paths) ->
+                collection.bulkWrite(
+                        paths.stream()
+                                .map(path -> new InsertOneModel<>(BookBuilder.of(path)))
+                                .collect(Collectors.toList())
+                );
+
+        chunks.parallelStream().unordered().forEach(writeBooksChunk);
 
         var duration = System.currentTimeMillis() - start;
         System.out.printf(
@@ -91,8 +92,9 @@ public class BooksIndexer {
                     .getDatabase("library")
                     .withCodecRegistry(codecRegistry)
                     .getCollection("books", Book.class);
-
-            new BooksIndexer().indexBooks(rootBooksPath, collection::insertOne);
+            new BooksIndexer().indexBooks(rootBooksPath, collection);
+        } catch (Exception ex) {
+            ex.printStackTrace();
         }
     }
 }

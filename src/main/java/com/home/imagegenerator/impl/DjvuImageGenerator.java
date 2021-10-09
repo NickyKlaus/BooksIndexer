@@ -2,6 +2,7 @@ package com.home.imagegenerator.impl;
 
 import com.home.imagegenerator.ImageGenerator;
 
+import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -29,18 +30,20 @@ public class DjvuImageGenerator implements ImageGenerator {
                         .command("zsh", "-c", generationCommand)
                         .start();
             } catch (IOException e) {
-                e.printStackTrace();
+                return null;
             }
-            return null;
         };
     }
 
     private static final BiFunction<Process, Throwable, byte[]> retrieveGeneratedImageData = (process, throwable) -> {
         if (throwable == null && process != null) {
-            try {
-                return process.getInputStream().readAllBytes();
+            try (
+                    var inputStream = process.getInputStream();
+                    var bufferedInputStream = new BufferedInputStream(inputStream)
+            ) {
+                return bufferedInputStream.readAllBytes();
             } catch (IOException e) {
-                e.printStackTrace();
+                return new byte[0];
             }
         }
         return new byte[0];
@@ -55,7 +58,8 @@ public class DjvuImageGenerator implements ImageGenerator {
                 fullyQualifiedSourceFilename,
                 targetImageFormat);
         return supplyAsync(startImageGeneration(generationCommand))
-                .handleAsync(retrieveGeneratedImageData);
+                .handleAsync(retrieveGeneratedImageData)
+                .exceptionally(t -> new byte[0]);
     }
 
     @Override
@@ -65,10 +69,9 @@ public class DjvuImageGenerator implements ImageGenerator {
 
         try {
             return createImageFromFirstDjvuPage(fullyQualifiedSourceFilename, targetImageFormat)
-                    .get(60L, SECONDS);
+                    .get(3L, SECONDS);
         } catch (ExecutionException | InterruptedException | TimeoutException ioe) {
-            ioe.printStackTrace();
+            return new byte[0];
         }
-        return new byte[0];
     }
 }

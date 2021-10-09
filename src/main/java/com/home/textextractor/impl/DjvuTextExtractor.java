@@ -29,18 +29,17 @@ public class DjvuTextExtractor implements DocumentTextExtractor {
                         .command("zsh", "-c", extractionCommand)
                         .start();
             } catch (IOException e) {
-                e.printStackTrace();
+                return null;
             }
-            return null;
         };
     }
 
     private static final BiFunction<Process, Throwable, byte[]> retrieveExtractedBinaryData = (process, throwable) -> {
         if (throwable == null && process != null) {
-            try {
-                return process.getInputStream().readAllBytes();
+            try (var inputStream = process.getInputStream()) {
+                return inputStream.readAllBytes();
             } catch (IOException e) {
-                e.printStackTrace();
+                return new byte[0];
             }
         }
         return new byte[0];
@@ -57,7 +56,8 @@ public class DjvuTextExtractor implements DocumentTextExtractor {
                 lastPage,
                 fullyQualifiedSourceFilename);
         return supplyAsync(startTextExtraction(extractionCommand))
-                .handleAsync(retrieveExtractedBinaryData);
+                .handleAsync(retrieveExtractedBinaryData)
+                .exceptionally(t -> new byte[0]);
     }
 
     @Override
@@ -69,11 +69,10 @@ public class DjvuTextExtractor implements DocumentTextExtractor {
         try {
             var binaryData =
                     extractHiddenTextFromDjvu(fullyQualifiedSourceFilename, startPage, endPage)
-                            .get(60L, SECONDS);
+                            .get(3L, SECONDS);
             return new String(binaryData, DEFAULT_TEXT_CHARSET);
         } catch (ExecutionException | InterruptedException | TimeoutException ioe) {
-            ioe.printStackTrace();
+            return "";
         }
-        return "";
     }
 }
