@@ -9,6 +9,8 @@ import com.mongodb.client.model.InsertOneModel;
 import org.bson.codecs.ValueCodecProvider;
 import org.bson.codecs.jsr310.Jsr310CodecProvider;
 import org.bson.codecs.pojo.PojoCodecProvider;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -28,6 +30,7 @@ import static org.apache.commons.io.FilenameUtils.getExtension;
 import static org.bson.codecs.configuration.CodecRegistries.fromProviders;
 
 public class BooksIndexer {
+    private static final Logger LOG = LoggerFactory.getLogger(BooksIndexer.class);
     private static final int CHUNK_SIZE = 10;
     private static final String ROOT_BOOKS_DIR_PROPERTY = "root_books_dir";
     private static final String DB_HOST_PROPERTY = "host";
@@ -42,7 +45,7 @@ public class BooksIndexer {
         try {
             return Files.find(rootDir, Integer.MAX_VALUE, isAvailableBookFile);
         } catch (IOException e) {
-            e.printStackTrace();
+            LOG.error("Error: ", e);
         }
         return Stream.empty();
     }
@@ -64,12 +67,9 @@ public class BooksIndexer {
         chunks.parallelStream().unordered().forEach(writeBooksChunk);
 
         var duration = System.currentTimeMillis() - start;
-        System.out.printf(
-                "Done in %d min, %d sec%n",
+        LOG.info("Done in {} min, {} sec.",
                 MILLISECONDS.toMinutes(duration),
-                MILLISECONDS.toSeconds(duration) -
-                        MINUTES.toSeconds(MILLISECONDS.toMinutes(duration))
-        );
+                MILLISECONDS.toSeconds(duration) - MINUTES.toSeconds(MILLISECONDS.toMinutes(duration)));
     }
 
     public static void main(String[] args) {
@@ -94,7 +94,7 @@ public class BooksIndexer {
                     .getCollection("books", Book.class);
             new BooksIndexer().indexBooks(rootBooksPath, collection);
         } catch (Exception ex) {
-            ex.printStackTrace();
+            LOG.error("Error: ", ex);
         }
     }
 }

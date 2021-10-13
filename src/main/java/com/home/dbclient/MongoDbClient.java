@@ -6,11 +6,14 @@ import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import com.mongodb.connection.ConnectionPoolSettings;
 import com.mongodb.connection.SocketSettings;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class MongoDbClient {
+    private static final Logger LOG = LoggerFactory.getLogger(MongoDbClient.class);
     private static final String DEFAULT_CONNECTION_SETTINGS = "mongodb://localhost:27017";
     private static final ConnectionPoolSettings connectionPoolSettings = ConnectionPoolSettings.builder()
             .minSize(2)
@@ -24,6 +27,7 @@ public class MongoDbClient {
             .build();
 
     private MongoDbClient() {
+        LOG.error(getClass() + " is a utility class and cannot be instantiated");
         throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
     }
 

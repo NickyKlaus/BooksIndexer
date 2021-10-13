@@ -1,6 +1,8 @@
 package com.home.textextractor.impl;
 
 import com.home.textextractor.DocumentTextExtractor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.BufferedInputStream;
 import java.io.IOException;
@@ -18,6 +20,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.commons.io.FilenameUtils.getExtension;
 
 public class DjvuTextExtractor implements DocumentTextExtractor {
+    private static final Logger LOG = LoggerFactory.getLogger(DjvuTextExtractor.class);
 
     private static ProcessBuilder processBuilder() {
         return new ProcessBuilder().redirectErrorStream(true);
@@ -30,6 +33,7 @@ public class DjvuTextExtractor implements DocumentTextExtractor {
                         .command("zsh", "-c", extractionCommand)
                         .start();
             } catch (IOException e) {
+                LOG.error("Error: ", e);
                 return null;
             }
         };
@@ -43,6 +47,7 @@ public class DjvuTextExtractor implements DocumentTextExtractor {
             ) {
                 return data.readAllBytes();
             } catch (IOException e) {
+                LOG.error("Error: ", e);
                 return new byte[0];
             }
         }
@@ -61,7 +66,10 @@ public class DjvuTextExtractor implements DocumentTextExtractor {
                 fullyQualifiedSourceFilename);
         return supplyAsync(startTextExtraction(extractionCommand))
                 .handleAsync(retrieveExtractedBinaryData)
-                .exceptionally(t -> new byte[0]);
+                .exceptionally(t -> {
+                    LOG.error("Error: ", t);
+                    return new byte[0];
+                });
     }
 
     @Override
@@ -73,9 +81,10 @@ public class DjvuTextExtractor implements DocumentTextExtractor {
         try {
             var binaryData =
                     extractHiddenTextFromDjvu(fullyQualifiedSourceFilename, startPage, endPage)
-                            .get(10L, SECONDS);
+                            .get(30L, SECONDS);
             return new String(binaryData, DEFAULT_TEXT_CHARSET);
-        } catch (ExecutionException | InterruptedException | TimeoutException ioe) {
+        } catch (ExecutionException | InterruptedException | TimeoutException e) {
+            LOG.error("Error: ", e);
             return "";
         }
     }

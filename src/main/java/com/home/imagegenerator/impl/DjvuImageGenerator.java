@@ -1,6 +1,8 @@
 package com.home.imagegenerator.impl;
 
 import com.home.imagegenerator.ImageGenerator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.BufferedInputStream;
 import java.io.IOException;
@@ -18,6 +20,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.commons.io.FilenameUtils.getExtension;
 
 public class DjvuImageGenerator implements ImageGenerator {
+    private static final Logger LOG = LoggerFactory.getLogger(DjvuImageGenerator.class);
 
     private static ProcessBuilder processBuilder() {
         return new ProcessBuilder().redirectErrorStream(true);
@@ -30,6 +33,7 @@ public class DjvuImageGenerator implements ImageGenerator {
                         .command("zsh", "-c", generationCommand)
                         .start();
             } catch (IOException e) {
+                LOG.error("Error: ", e);
                 return null;
             }
         };
@@ -43,6 +47,7 @@ public class DjvuImageGenerator implements ImageGenerator {
             ) {
                 return bufferedInputStream.readAllBytes();
             } catch (IOException e) {
+                LOG.error("Error: ", e);
                 return new byte[0];
             }
         }
@@ -59,7 +64,10 @@ public class DjvuImageGenerator implements ImageGenerator {
                 targetImageFormat);
         return supplyAsync(startImageGeneration(generationCommand))
                 .handleAsync(retrieveGeneratedImageData)
-                .exceptionally(t -> new byte[0]);
+                .exceptionally(t -> {
+                    LOG.error("Error: ", t);
+                    return new byte[0];
+                });
     }
 
     @Override
@@ -69,8 +77,9 @@ public class DjvuImageGenerator implements ImageGenerator {
 
         try {
             return createImageFromFirstDjvuPage(fullyQualifiedSourceFilename, targetImageFormat)
-                    .get(10L, SECONDS);
-        } catch (ExecutionException | InterruptedException | TimeoutException ioe) {
+                    .get(30L, SECONDS);
+        } catch (ExecutionException | InterruptedException | TimeoutException e) {
+            LOG.error("Error: ", e);
             return new byte[0];
         }
     }
