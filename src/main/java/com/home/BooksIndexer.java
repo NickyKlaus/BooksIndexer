@@ -91,7 +91,7 @@ public class BooksIndexer {
             var collection = client
                     .getDatabase("library")
                     .withCodecRegistry(codecRegistry)
-                    .getCollection("books", Book.class);
+                    .getCollection("book", Book.class);
             new BooksIndexer().indexBooks(rootBooksPath, collection);
         } catch (Exception ex) {
             LOG.error("Error: ", ex);
