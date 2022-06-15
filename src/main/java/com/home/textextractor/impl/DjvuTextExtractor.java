@@ -30,7 +30,7 @@ public class DjvuTextExtractor implements DocumentTextExtractor {
         return () -> {
             try {
                 return processBuilder()
-                        .command("zsh", "-c", extractionCommand)
+                        .command("bash", "-c", extractionCommand)
                         .start();
             } catch (IOException e) {
                 LOG.error("Error: ", e);

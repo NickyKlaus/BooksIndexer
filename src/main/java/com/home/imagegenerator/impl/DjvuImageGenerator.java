@@ -30,7 +30,7 @@ public class DjvuImageGenerator implements ImageGenerator {
         return () -> {
             try {
                 return processBuilder()
-                        .command("zsh", "-c", generationCommand)
+                        .command("bash", "-c", generationCommand)
                         .start();
             } catch (IOException e) {
                 LOG.error("Error: ", e);
