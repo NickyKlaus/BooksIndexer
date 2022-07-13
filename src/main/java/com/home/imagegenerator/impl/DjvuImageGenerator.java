@@ -59,7 +59,7 @@ public class DjvuImageGenerator implements ImageGenerator {
             final String targetImageFormat
     ) {
         var generationCommand = format(
-                "ddjvu -format=pnm -page=1 -mode=color -skip -scale=72 \"%s\" - | convert pnm:fd:0 %s:- ",
+                "ddjvu -format=pnm -page=1 -mode=color -skip -scale=72 \"%s\" - | convert pnm:fd:0 %s :- ",
                 fullyQualifiedSourceFilename,
                 targetImageFormat);
         return supplyAsync(startImageGeneration(generationCommand))
